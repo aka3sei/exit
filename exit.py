@@ -120,6 +120,8 @@ with st.container():
     mansion_name = st.text_input("マンション名 (任意)", placeholder="例：パークマンション千鳥ヶ淵")
     
     year_now = st.number_input("築年月 (西暦)", min_value=1970, max_value=2025, value=2015)
+    
+　　clicked = st.button("　将来価値をシミュレート　")
 
 # --- 5. 予測ロジックとマップ表示 ---
 if clicked:
@@ -197,5 +199,6 @@ if clicked:
 
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
