@@ -89,9 +89,8 @@ st.markdown("""
 # --- 3. モデル読み込み ---
 @st.cache_resource
 def load_model():
-    # LightGBMモデルを読み込み
-    with open('satei_model.pkl', 'rb') as f:
-        return pickle.load(f)
+    # pickle.load ではなく joblib.load を使う
+    return joblib.load('satei_model.pkl')
 
 model = load_model()
 
@@ -146,4 +145,5 @@ if st.button("査定シミュレーションを実行"):
         st.markdown(f'<div class="rent-card"><div class="label">10年後の想定賃料</div><div class="price">{future_rent:.1f}万円</div></div>', unsafe_allow_html=True)
 
     st.info(f"💡 予測の根拠: 当該エリアの地価上昇トレンド（+{land_price_pct}%）に対し、建物減価率を上回るインフレ圧力を考慮しています。")
+
 
