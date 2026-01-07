@@ -116,12 +116,13 @@ with st.container():
         area = st.number_input("専有面積 (㎡)", min_value=10, value=60)
         walk = st.slider("駅より徒歩 (分)", 0, 30, 5)
     
-    # 【追加】マンション名の入力窓（任意）
     mansion_name = st.text_input("マンション名 (任意)", placeholder="例：パークマンション千鳥ヶ淵")
-    
     year_now = st.number_input("築年月 (西暦)", min_value=1970, max_value=2025, value=2015)
-    
-　　clicked = st.button("　将来価値をシミュレート　")
+
+# ★ここを左端に詰めて書き直してください
+st.markdown('<div class="center-container">', unsafe_allow_html=True)
+clicked = st.button("　将来価値をシミュレート　")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 5. 予測ロジックとマップ表示 ---
 if clicked:
@@ -199,6 +200,7 @@ if clicked:
 
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
 
