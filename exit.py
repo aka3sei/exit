@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import pickle
 import lightgbm as lgb
-import numpy as np
-import joblib
 
 # --- 1. データ定義（継承） ---
 rent_factor = {
@@ -65,85 +63,114 @@ ku_market_data = {
     '江戸川区': {'特徴': "子育て支援策は都内随一。東西線沿線の利便性と広い住環境を求める層に安定した人気。", '人気': "葛西、西葛西、船堀、小岩、瑞江", 'ブランド': "プラウドタワー小岩、パークホームズ瑞江、プラウド瑞江、レジデントプレイス西葛西、ザ・パークハウス船堀", '開発': "小岩駅周辺で複数の再開発が同時進行中。下町のイメージを塗り替える変革期です。"}
 }
 
-# --- 2. ページ設定とスタイル ---
-st.set_page_config(page_title="23区AI将来価値・家賃予測", layout="centered")
+# --- 2. ページ設定とインフレ版専用スタイル ---
+st.set_page_config(page_title="23区将来価値予測(インフレ版)", layout="centered")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #f8fafc; }
+    header[data-testid="stHeader"] { visibility: hidden; display: none; }
+    footer { visibility: hidden; }
+    .stApp { background-color: #f0f7f2; } /* 薄い緑背景 */
+    
+    .center-container { display: flex; justify-content: center; width: 100%; margin: 30px 0; }
+    
+    /* インフレ版専用ボタン（グリーン） */
+    div.stButton > button {
+        min-width: 340px !important; height: 60px !important; font-size: 24px !important;
+        font-weight: bold !important; background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%) !important;
+        color: white !important; border-radius: 40px !important;
+        box-shadow: 0 8px 20px rgba(46, 125, 50, 0.3) !important; border: none !important;
+    }
+
+    /* 予測結果カード */
     .prediction-card {
         background: white; padding: 20px; border-radius: 15px;
-        border-top: 6px solid #2e7d32; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        margin-bottom: 20px; text-align: center;
+        border-top: 6px solid #2e7d32; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 25px; text-align: center;
     }
-    .rent-card {
-        background: white; padding: 20px; border-radius: 15px;
-        border-top: 6px solid #1e3a8a; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        margin-bottom: 20px; text-align: center;
-    }
-    .label { color: #64748b; font-weight: bold; font-size: 1rem; }
-    .price { color: #1e293b; font-size: 2.2rem; font-weight: bold; }
+    .pred-label { color: #2e7d32; font-weight: bold; font-size: 1.1rem; }
+    .pred-price { color: #1b5e20; font-size: 2.4rem; font-weight: bold; margin: 10px 0; }
+    .pred-diff { font-size: 1.1rem; color: #666; }
+    .up-arrow { color: #e91e63; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 3. モデル読み込み ---
 @st.cache_resource
 def load_model():
-    # pickle.load ではなく joblib.load を使う
-    return joblib.load('satei_model.pkl')
+    with open('satei_model.pkl', 'rb') as f:
+        return pickle.load(f)
 
 model = load_model()
 
 # --- 4. 入力フォーム ---
-st.title("🏙️ AI資産価値・家賃予測システム")
-st.caption("LightGBMエンジン × 公示地価連動ロジック")
+st.title("📈 将来価値シミュレーション")
+st.subheader("〜 年率5.0%の市場上昇を想定 〜")
+st.caption("AIによる経年減価予測に、現在のインフレトレンド（+5%）を加味した未来予測です。")
 
 with st.container():
     col1, col2 = st.columns(2)
     with col1:
-        selected_ku = st.selectbox("区を選択", list(town_data.keys()))
+        selected_ku = st.selectbox("区を選択", list(ku_market_data.keys()))
         selected_loc = st.selectbox("所在地を選択", town_data.get(selected_ku, ["その他"]))
     with col2:
-        area = st.number_input("専有面積 (㎡)", min_value=10.0, value=70.0, step=0.1)
-        # 2025年最新の地価トレンドを反映させるスライダー
-        land_price_pct = st.slider("エリアの地価変動率 (%)", -2.0, 15.0, 6.3)
-
-# あなたのこだわりロジック：将来予測係数と賃料予測係数
-f_coeff = 1 + (land_price_pct / 100)
-r_coeff = 0.98 + (land_price_pct / 200)
-
-if st.button("査定シミュレーションを実行"):
-    # AIによる売却価格査定
-    # ※学習時の特徴量に合わせて並び替えてください
-    input_df = pd.DataFrame([[area, land_price_pct, f_coeff, r_coeff]], 
-                             columns=['専有面積', '公示地価変動率', '将来予測係数', '賃料予測係数'])
+        area = st.number_input("専有面積 (㎡)", min_value=10, value=60)
+        walk = st.slider("駅より徒歩 (分)", 0, 30, 5)
     
-    # LightGBMによる現在価格の推論
-    p_current = model.predict(input_df)[0]
+    year_now = st.number_input("築年月 (西暦)", min_value=1970, max_value=2025, value=2015)
+
+st.markdown('<div class="center-container">', unsafe_allow_html=True)
+clicked = st.button("　将来価値をシミュレート　")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 5. 予測ロジック ---
+if clicked:
+    full_address = f"東京都{selected_ku}{selected_loc}"
     
-    # 1. 資産価値の表示
-    st.subheader("📊 資産価値予測")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(f'<div class="prediction-card"><div class="label">現在の推定価格</div><div class="price">{round(p_current):,}万円</div></div>', unsafe_allow_html=True)
-    with c2:
-        # 10年後予測：建物減価（約15%減）を考慮しつつ地価上昇を反映
-        p_10y = p_current * (f_coeff ** 10) / 1.15
-        st.markdown(f'<div class="prediction-card"><div class="label">10年後の予想価格</div><div class="price">{round(p_10y):,}万円</div></div>', unsafe_allow_html=True)
+    def get_prediction(years_later):
+        # 1. AIによる「古くなった後」のベース価格予測
+        # 築年数を経過年数分マイナス（モデル上は古くなる）
+        future_year = year_now - years_later 
+        input_df = pd.DataFrame([{
+            '区': selected_ku, '所在': full_address, '専有面積': area, 
+            '駅より徒歩': walk, '築年月': future_year
+        }])
+        input_df['区'] = input_df['区'].astype('category')
+        input_df['所在'] = input_df['所在'].astype('category')
+        
+        base_future_price = model.predict(input_df)[0]
+        
+        # 2. インフレ補正（年利5%の複利）
+        inflation_factor = (1.05 ** years_later)
+        return base_future_price * inflation_factor
 
-    # 2. 家賃予測（継承ロジック）
-    st.subheader("💰 家賃シミュレーション")
-    # 想定賃料単価：都心平均単価(3,800円)に区別のrent_factorを乗算
-    current_rent = (area * 3800 * rent_factor.get(selected_ku, 1.0)) / 10000 
-    
-    rc1, rc2 = st.columns(2)
-    with rc1:
-        st.markdown(f'<div class="rent-card"><div class="label">想定月額賃料</div><div class="price">{current_rent:.1f}万円</div></div>', unsafe_allow_html=True)
-    with rc2:
-        # 10年後の想定賃料：r_coeff（インフレ維持力）を10年分累積
-        future_rent = current_rent * (r_coeff ** 10)
-        st.markdown(f'<div class="rent-card"><div class="label">10年後の想定賃料</div><div class="price">{future_rent:.1f}万円</div></div>', unsafe_allow_html=True)
+    try:
+        p_current = get_prediction(0)
+        p_5y = get_prediction(5)
+        p_10y = get_prediction(10)
 
-    st.info(f"💡 予測の根拠: 当該エリアの地価上昇トレンド（+{land_price_pct}%）に対し、建物減価率を上回るインフレ圧力を考慮しています。")
+        st.divider()
+        st.metric("現在のAI査定ベース価格", f"{round(p_current):,} 万円")
 
+        # 5年後表示
+        st.markdown(f"""
+            <div class="prediction-card">
+                <div class="pred-label">📅 5年後の予想価値 (+5%成長想定)</div>
+                <div class="pred-price">{round(p_5y):,} 万円</div>
+                <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_5y/p_current - 1)*100, 1)}%</span></div>
+            </div>
+        """, unsafe_allow_html=True)
 
+        # 10年後表示
+        st.markdown(f"""
+            <div class="prediction-card">
+                <div class="pred-label">📅 10年後の予想価値 (+5%成長想定)</div>
+                <div class="pred-price">{round(p_10y):,} 万円</div>
+                <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_10y/p_current - 1)*100, 1)}%</span></div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.info("💡 補正の根拠: 2025年東京圏基準地価変動率（+5.0%）を維持すると仮定。建物減価を上回る資産インフレを考慮した数値です。")
+
+    except Exception as e:
+        st.error(f"シミュレーションエラー: {e}")
