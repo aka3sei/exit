@@ -103,10 +103,9 @@ def load_model():
 
 model = load_model()
 
-# --- 4. 入力フォーム ---
+# --- 4. 入力フォームの部分 ---
 st.title("📈 将来価値シミュレーション")
 st.subheader("〜 年率5.0%の市場上昇を想定 〜")
-st.caption("AIによる経年減価予測に、現在のインフレトレンド（+5%）を加味した未来予測です。")
 
 with st.container():
     col1, col2 = st.columns(2)
@@ -117,11 +116,35 @@ with st.container():
         area = st.number_input("専有面積 (㎡)", min_value=10, value=60)
         walk = st.slider("駅より徒歩 (分)", 0, 30, 5)
     
+    # 【追加】マンション名の入力窓（任意）
+    mansion_name = st.text_input("マンション名 (任意)", placeholder="例：パークマンション千鳥ヶ淵")
+    
     year_now = st.number_input("築年月 (西暦)", min_value=1970, max_value=2025, value=2015)
 
-st.markdown('<div class="center-container">', unsafe_allow_html=True)
-clicked = st.button("　将来価値をシミュレート　")
-st.markdown('</div>', unsafe_allow_html=True)
+# --- 5. 予測ロジックとマップ表示 ---
+if clicked:
+    # 基本の住所
+    full_address = f"東京都{selected_ku}{selected_loc}"
+    
+    # 【追加】マップ表示ロジック
+    import streamlit.components.v1 as components
+    
+    st.markdown("---")
+    
+    # マンション名が入っている場合のみピンポイント表示
+    if mansion_name:
+        # マンション名がある場合は「住所＋マンション名」で検索精度を上げる
+        search_query = f"{full_address} {mansion_name}"
+        map_url = f"https://www.google.com/maps?q={search_query}&output=embed"
+        
+        st.markdown(f"### 📍 査定物件: {mansion_name}")
+        components.iframe(map_url, height=400)
+    else:
+        # マンション名がない場合は、エリアの紹介として表示（または非表示も選択可）
+        st.info("💡 マンション名を入力すると、地図上でピンポイントの場所を確認できます。")
+        # エリア表示にするなら以下を有効化
+        # map_url = f"https://www.google.com/maps?q={full_address}&output=embed"
+        # components.iframe(map_url, height=300)
 
 # --- 5. 予測ロジック ---
 if clicked:
@@ -174,4 +197,5 @@ if clicked:
 
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
