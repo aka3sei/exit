@@ -187,19 +187,47 @@ if clicked:
             </div>
         """, unsafe_allow_html=True)
 
-        # 10年後表示
-        st.markdown(f"""
-            <div class="prediction-card">
-                <div class="pred-label">📅 10年後の予想価値 (+5%成長想定)</div>
-                <div class="pred-price">{round(p_10y):,} 万円</div>
-                <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_10y/p_current - 1)*100, 1)}%</span></div>
-            </div>
-        """, unsafe_allow_html=True)
+        # 10年後の異なるシナリオを計算
+        def get_prediction_custom(years_later, rate):
+            future_year = year_now - years_later 
+            input_df = pd.DataFrame([{
+                '区': selected_ku, '所在': full_address, '専有面積': area, 
+                '駅より徒歩': walk, '築年月': future_year
+            }])
+            input_df['区'] = input_df['区'].astype('category')
+            input_df['所在'] = input_df['所在'].astype('category')
+            base_future_price = model.predict(input_df)[0]
+            return base_future_price * (rate ** years_later)
 
-        st.info("💡 補正の根拠: AIが予測する『経年による建物価値の下落』を算出した上で、さらに近年の東京圏地価トレンド（年率+5.0%）が継続すると仮定した複利計算を合成しています。減価償却によるマイナスと、資産インフレによるプラスの両面を反映した数値です。")
+        p_10y_3pct = get_prediction_custom(10, 1.03) # 3%版
+        p_10y_5pct = get_prediction_custom(10, 1.05) # 5%版
+
+        st.write("### 📅 10年後の市場シナリオ別予測")
+        col_a, col_b = st.columns(2)
+
+        with col_a:
+            st.markdown(f"""
+                <div class="prediction-card" style="border-top: 6px solid #8bc34a;">
+                    <div class="pred-label">10年後 (インフレ年3%想定)</div>
+                    <div class="pred-price" style="font-size: 1.8rem;">{round(p_10y_3pct):,} 万円</div>
+                    <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_10y_3pct/p_current - 1)*100, 1)}%</span></div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        with col_b:
+            st.markdown(f"""
+                <div class="prediction-card">
+                    <div class="pred-label">10年後 (インフレ年5%想定)</div>
+                    <div class="pred-price" style="font-size: 1.8rem;">{round(p_10y_5pct):,} 万円</div>
+                    <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_10y_5pct/p_current - 1)*100, 1)}%</span></div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.info("💡 **補正の根拠**: AIが予測する『経年による建物価値の下落』に、市場インフレ率を合成しています。年3%は安定成長、年5%は近年の都心トレンドを反映した数値です。")
 
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
 
