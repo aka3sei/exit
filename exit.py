@@ -194,6 +194,14 @@ if clicked:
         p_10y_3pct = get_prediction_custom(10, 1.03)
         p_10y_5pct = get_prediction_custom(10, 1.05)
 
+        # 1. まず計算を行う（この変数が定義されていないとエラーになります）
+        diff_5y_1 = round((p_5y_1pct/p_current - 1)*100, 1)
+        diff_5y_3 = round((p_5y_3pct/p_current - 1)*100, 1)
+        diff_5y_5 = round((p_5y_5pct/p_current - 1)*100, 1)
+        
+        diff_10y_1 = round((p_10y_1pct/p_current - 1)*100, 1)
+        diff_10y_3 = round((p_10y_3pct/p_current - 1)*100, 1)
+        diff_10y_5 = round((p_10y_5pct/p_current - 1)*100, 1)
         # 騰落率に応じて表示を完璧に制御する関数
         def get_diff_html(diff):
             if diff >= 0:
@@ -227,6 +235,7 @@ if clicked:
             st.markdown(f'<div class="prediction-card"><div class="pred-label">10年後 (年5%想定)</div><div class="pred-price" style="font-size: 1.5rem;">{round(p_10y_5pct):,} 万円</div><div class="pred-diff">現在比 {get_diff_html(diff_10y_5)}</div></div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
 
