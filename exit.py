@@ -185,64 +185,132 @@ if clicked:
             base_future_price = model.predict(input_df)[0]
             return base_future_price * (rate ** years_later)
 
-       # 各パターンの騰落率を計算（10年後も追加）
-        diff_5y_1 = round((p_5y_1pct/p_current - 1)*100, 1)
-        diff_5y_3 = round((p_5y_3pct/p_current - 1)*100, 1)
-        diff_5y_5 = round((p_5y_5pct/p_current - 1)*100, 1)
+       # 5年後と10年後の各パターンを計算（1%を追加）
+
+        p_5y_1pct = get_prediction_custom(5, 1.01)
+
+        p_5y_3pct = get_prediction_custom(5, 1.03)
+
+        p_5y_5pct = get_prediction_custom(5, 1.05)
+
         
-        diff_10y_1 = round((p_10y_1pct/p_current - 1)*100, 1)
-        diff_10y_3 = round((p_10y_3pct/p_current - 1)*100, 1)
-        diff_10y_5 = round((p_10y_5pct/p_current - 1)*100, 1)
+
+        p_10y_1pct = get_prediction_custom(10, 1.01)
+
+        p_10y_3pct = get_prediction_custom(10, 1.03)
+
+        p_10y_5pct = get_prediction_custom(10, 1.05)
+
+
+
+        # 各パターンの騰落率を計算
+
+        diff_5y_1 = round((p_5y_1pct/p_current - 1)*100, 1)
+
+        diff_5y_3 = round((p_5y_3pct/p_current - 1)*100, 1)
+
+        diff_5y_5 = round((p_5y_5pct/p_current - 1)*100, 1)
+
+
 
         # 騰落率に応じて色と記号を分ける関数
+
         def get_diff_html(diff):
+
             if diff >= 0:
+
                 return f'<span style="color: #e91e63; font-weight: bold;">+{diff}%</span>' # プラスは赤
+
             else:
+
                 return f'<span style="color: #2196f3; font-weight: bold;">{diff}%</span>' # マイナスは青
 
+
+
         st.divider()
+
         st.metric("現在のAI査定ベース価格", f"{round(p_current):,} 万円")
 
+
+
         # --- 5年後の予測セクション ---
+
         st.write("### 📅 5年後の市場シナリオ別予測")
+
         c5_1, c5_3, c5_5 = st.columns(3)
+
         with c5_1:
+
             st.markdown(f"""
+
                 <div class="prediction-card" style="border-top: 6px solid #9e9e9e;">
+
                     <div class="pred-label">5年後 (年1%想定)</div>
+
                     <div class="pred-price" style="font-size: 1.5rem;">{round(p_5y_1pct):,} 万円</div>
-                    <div class="pred-diff">現在比 {get_diff_html(diff_5y_1)}</div>
+
+                    <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_5y_1pct/p_current - 1)*100, 1)}%</span></div>
+
                 </div>
-            """, unsafe_allow_html=True)
-        with c5_3:
-            st.markdown(f"""
-                <div class="prediction-card" style="border-top: 6px solid #8bc34a;">
-                    <div class="pred-label">5年後 (年3%想定)</div>
-                    <div class="pred-price" style="font-size: 1.5rem;">{round(p_5y_3pct):,} 万円</div>
-                    <div class="pred-diff">現在比 {get_diff_html(diff_5y_3)}</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with c5_5:
-            st.markdown(f"""
-                <div class="prediction-card">
-                    <div class="pred-label">5年後 (年5%想定)</div>
-                    <div class="pred-price" style="font-size: 1.5rem;">{round(p_5y_5pct):,} 万円</div>
-                    <div class="pred-diff">現在比 {get_diff_html(diff_5y_5)}</div>
-                </div>
+
             """, unsafe_allow_html=True)
 
-        # --- 10年後の予測セクション ---
-        st.write("### 📅 10年後の市場シナリオ別予測")
-        c10_1, c10_3, c10_5 = st.columns(3)
-        with c10_1:
+        with c5_3:
+
             st.markdown(f"""
-                <div class="prediction-card" style="border-top: 6px solid #9e9e9e;">
-                    <div class="pred-label">10年後 (年1%想定)</div>
-                    <div class="pred-price" style="font-size: 1.5rem;">{round(p_10y_1pct):,} 万円</div>
-                    <div class="pred-diff">現在比 {get_diff_html(diff_10y_1)}</div>
+
+                <div class="prediction-card" style="border-top: 6px solid #8bc34a;">
+
+                    <div class="pred-label">5年後 (年3%想定)</div>
+
+                    <div class="pred-price" style="font-size: 1.5rem;">{round(p_5y_3pct):,} 万円</div>
+
+                    <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_5y_3pct/p_current - 1)*100, 1)}%</span></div>
+
                 </div>
+
             """, unsafe_allow_html=True)
+
+        with c5_5:
+
+            st.markdown(f"""
+
+                <div class="prediction-card">
+
+                    <div class="pred-label">5年後 (年5%想定)</div>
+
+                    <div class="pred-price" style="font-size: 1.5rem;">{round(p_5y_5pct):,} 万円</div>
+
+                    <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_5y_5pct/p_current - 1)*100, 1)}%</span></div>
+
+                </div>
+
+            """, unsafe_allow_html=True)
+
+
+
+        # --- 10年後の予測セクション ---
+
+        st.write("### 📅 10年後の市場シナリオ別予測")
+
+        c10_1, c10_3, c10_5 = st.columns(3)
+
+        with c10_1:
+
+            st.markdown(f"""
+
+                <div class="prediction-card" style="border-top: 6px solid #9e9e9e;">
+
+                    <div class="pred-label">10年後 (年1%想定)</div>
+
+                    <div class="pred-price" style="font-size: 1.5rem;">{round(p_10y_1pct):,} 万円</div>
+
+                    <div class="pred-diff">現在比 <span class="up-arrow">+{round((p_10y_1pct/p_current - 1)*100, 1)}%</span></div>
+
+                </div>
+
+            """, unsafe_allow_html=True)
+
         with c10_3:
             st.markdown(f"""
                 <div class="prediction-card" style="border-top: 6px solid #8bc34a;">
