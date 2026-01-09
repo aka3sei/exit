@@ -233,8 +233,70 @@ if clicked:
             st.markdown(f'<div class="prediction-card" style="border-top: 6px solid #8bc34a;"><div class="pred-label">10年後 (年3%想定)</div><div class="pred-price" style="font-size: 1.5rem;">{round(p_10y_3pct):,} 万円</div><div class="pred-diff">現在比 {get_diff_html(diff_10y_3)}</div></div>', unsafe_allow_html=True)
         with c10_5:
             st.markdown(f'<div class="prediction-card"><div class="pred-label">10年後 (年5%想定)</div><div class="pred-price" style="font-size: 1.5rem;">{round(p_10y_5pct):,} 万円</div><div class="pred-diff">現在比 {get_diff_html(diff_10y_5)}</div></div>', unsafe_allow_html=True)
+    
+    # --- 6. 総合判定ロジック (AIスコアリング) ---
+        st.write("### 🏆 AI総合投資判定")
+        
+        # 1. キャピタルスコア (10年後3%想定の騰落率をベースに0-100)
+        # 現在比プラスなら高得点、実質デフレ（マイナス）なら低得点
+        capital_score = min(max(int((diff_10y_3 + 10) * 4), 0), 100)
+        
+        # 2. インカムスコア (区ごとの賃料係数をベースに算出)
+        base_rent_index = rent_factor.get(selected_ku, 1.0)
+        income_score = min(max(int(base_rent_index * 75), 0), 100)
+        
+        # 3. 流動性スコア (駅徒歩と都心5区判定)
+        walk_score = max(0, 50 - (walk * 3))
+        is_prime_ku = selected_ku in ['千代田区', '中央区', '港区', '渋谷区', '新宿区']
+        ku_power = 50 if is_prime_ku else 30
+        liquidity_score = min(walk_score + ku_power, 100)
+
+        # 総合評価（重み付け：流動性を重視）
+        total_score = int((capital_score * 0.35) + (income_score * 0.3) + (liquidity_score * 0.35))
+        
+        # 判定ランクとアドバイスの分岐
+        if total_score >= 80:
+            rank, color, advice = "S (最高水準)", "#e91e63", "資産価値・収益性・流動性のすべてが揃った希少物件。長期保有による恩恵が極めて大きいです。"
+        elif total_score >= 65:
+            rank, color, advice = "A (優良)", "#4caf50", "堅実な投資対象です。インフレ局面で着実な資産形成が期待できるバランスの良い物件です。"
+        elif total_score >= 50:
+            rank, color, advice = "B (標準)", "#ff9800", "住み心地と資産価値が拮抗。実質デフレ局面では管理状態が価値維持の鍵を握ります。"
+        else:
+            rank, color, advice = "C (要警戒)", "#2196f3", "実質デフレ（年1%インフレ以下）における減価リスクが顕著。取得価格の徹底した交渉が必要です。"
+
+        # --- 表示UI ---
+        score_col1, score_col2 = st.columns([1, 2])
+        with score_col1:
+            st.markdown(f"""
+                <div style="background: white; padding: 25px; border-radius: 15px; border: 3px solid {color}; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div style="font-size: 1.1rem; color: #666; margin-bottom: 10px;">AI総合投資評価</div>
+                    <div style="font-size: 4rem; font-weight: bold; color: {color}; line-height: 1;">{total_score}</div>
+                    <div style="font-size: 1.2rem; color: #666; margin-top: 5px;">points</div>
+                    <div style="font-size: 1.8rem; font-weight: bold; color: {color}; margin-top: 15px;">Rank {rank[:1]}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        with score_col2:
+            st.write(f"**【セグメント別 AI評価】**")
+            st.progress(capital_score / 100, text=f"📈 キャピタル（値上がり期待）: {capital_score}点")
+            st.progress(income_score / 100, text=f"💰 インカム（賃料安定性）: {income_score}点")
+            st.progress(liquidity_score / 100, text=f"⚡ 流動性（換金・売却しやすさ）: {liquidity_score}点")
+            st.info(f"**AI総評**: {advice}")
+
+        # --- 項目1：売買戦略アドバイス ---
+        st.markdown(f"""
+        ### 💰 戦略価格パッケージ
+        | 項目 | 目安金額 | 算出根拠 |
+        | :--- | :--- | :--- |
+        | **推奨指値（買主）** | **{round(p_current):,} 万円** | AI査定ベースの市場適正価格 |
+        | **売出目標（売主）** | **{round(p_current * 1.15):, } 万円** | 交渉幅を見越した強気の売出価格 (+15%) |
+        | **即値下限界（デッドライン）** | **{round(p_current * 0.95):, } 万円** | 早期売却を優先する際の最低ライン |
+    
+    
+    
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
 
