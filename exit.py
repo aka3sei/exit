@@ -293,30 +293,64 @@ if clicked:
         | **即値下限界（デッドライン）** | **{round(p_current * 0.95):,} 万円** | 早期売却を優先する際の最低ライン |
         """, unsafe_allow_html=True)
 
-        # --- 項目2 & 4：賃料シミュレーション ---
+        # --- 🏠 賃料・収益性予測（新ロジック統合版） ---
         st.write("---")
-        st.write("### 🏠 賃料・収益性予測（項目2 & 4）")
+        st.write("### 🏠 賃料・収益性予測")
         
-        # 賃料計算ロジック（ベース単価 4,000円/㎡ × エリア係数）
-        # ※万円単位で算出
-        current_rent = (area * 4000 * rent_factor.get(selected_ku, 1.0)) / 10000 
+        # 1. 家賃専用AIモデルの読み込みと予測
+        try:
+            # 売買用とは別に、家賃専用のモデルをロード
+            model_rent = joblib.load('tokyo_rent_v3.pkl')
+            town_mapping_rent = joblib.load('town_mapping.joblib')
+            
+            # 家賃用モデルに適した町名IDを取得
+            # (所在地テキストから家賃用辞書でIDを引く)
+            best_match_rent = next((addr for addr in town_mapping_rent.keys() if selected_loc in addr), list(town_mapping_rent.keys())[0])
+            town_id_rent = town_mapping_rent.get(best_match_rent, 0)
+            
+            # 2026年時点の築年数を計算
+            age_2026 = 2026 - year_now
+            
+            # 家賃予測用データフレーム作成
+            X_rent = pd.DataFrame([[town_id_rent, area, age_2026, walk]], 
+                                  columns=['町名_id', '面積(㎡)', '築年数', '駅徒歩'])
+            
+            # 2026年時点のベース家賃をAIが算出
+            current_rent_raw = model_rent.predict(X_rent)[0]
+        except Exception as e:
+            # 万が一モデルがない場合のバックアップ計算
+            current_rent_raw = (area * 4000 * rent_factor.get(selected_ku, 1.0))
+            st.warning(f"家賃AIの読み込みに失敗したため、簡易計算を表示しています: {e}")
+
+        # 2. 未来家賃計算ロジック（経年劣化 0.8% を適用）
+        def calc_future_rent(base_rent, years, inflation):
+            DEPRECIATION_RATE = 0.008  # 指示通りの劣化率
+            depreciation_effect = (1 - DEPRECIATION_RATE) ** years
+            inflation_effect = (1 + inflation) ** years
+            return base_rent * depreciation_effect * inflation_effect
+
+        # 10年後の各シナリオを算出
+        rent_10y_1pct = calc_future_rent(current_rent_raw, 10, 0.01)
+        rent_10y_2pct = calc_future_rent(current_rent_raw, 10, 0.02)
         
-        # 10年後：建物老朽化（-10%）とインフレの合成
-        rent_10y_1pct = current_rent * (1.01 ** 10) * 0.90 
-        rent_10y_2pct = current_rent * (1.02 ** 10) * 0.90
-        
+        # 3. 表示レイアウト（指示通り：括弧なし、アプリ数値と一致、平米単価あり）
         r_col1, r_col2, r_col3 = st.columns(3)
         with r_col1:
-            st.metric("現在の相場賃料", f"{current_rent:.1f} 万円")
+            st.metric("現在の相場賃料", f"{int(current_rent_raw):,}")
         with r_col2:
-            st.metric("10年後 (インフレ1%)", f"{rent_10y_1pct:.1f} 万円")
+            st.metric("10年後 インフレ1%", f"{int(rent_10y_1pct):,}")
         with r_col3:
-            st.metric("10年後 (インフレ2%)", f"{rent_10y_2pct:.1f} 万円")
+            st.metric("10年後 インフレ2%", f"{int(rent_10y_2pct):,}")
 
-        st.caption("※賃料予測は、建物老朽化による減価（年-1%）と市場インフレ率を合成して算出しています。")
+        # 平米単価の表示
+        unit_price_rent = current_rent_raw / area if area > 0 else 0
+        st.write(f"現在の平米単価 　 {int(unit_price_rent):,} 円/㎡")
+        
+        st.caption(f"※賃料予測は、建物老朽化による減価（年0.8%下落）と各インフレ率を合成して算出しています。")
 
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
 
