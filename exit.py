@@ -219,25 +219,39 @@ if clicked:
     # 価格戦略
     st.markdown(f"### 💰 戦略価格パッケージ\n| 項目 | 目安金額 | 算出根拠 |\n| :--- | :--- | :--- |\n| 推奨指値 | **{round(p_current):,} 万円** | 適正市場価格 |\n| 売出目標 | **{round(p_current*1.15):,} 万円** | 強気売出 (+15%) |\n| 下限価格 | **{round(p_current*0.95):,} 万円** | 早期売却ライン |")
 
-    # --- 🏠 賃料予測 (AI統合版) ---
+    # --- 🏠 賃料予測 (区の絞り込みを厳密化) ---
     st.write("---")
     st.write("### 🏠 賃料・収益性予測")
     try:
-        search_name = f"{selected_ku}{selected_loc}"
+        # 1. まず「選択された区」で始まる地点だけに絞り込む
         all_rent_keys = list(town_mapping_rent.keys())
-        match_keys = [k for k in all_rent_keys if search_name in k]
-        best_key = match_keys[0] if match_keys else all_rent_keys[0]
-        town_id_rent = town_mapping_rent[best_key]
+        district_keys = [k for k in all_rent_keys if k.startswith(selected_ku)]
+        
+        # 2. その区の中から、選択された町名に一致するものを探す
+        match_keys = [k for k in district_keys if selected_loc in k]
+        
+        if match_keys:
+            # 一致するものがあればそれを使用（例：新宿区内から探す）
+            best_key = match_keys[0]
+            town_id_rent = town_mapping_rent[best_key]
+        else:
+            # 万が一、その区の中に一致がなければ、区の1番目の地点を代表として使用
+            best_key = district_keys[0] if district_keys else all_rent_keys[0]
+            town_id_rent = town_mapping_rent[best_key]
 
-        X_rent = pd.DataFrame([[town_id_rent, area, CURRENT_YEAR - year_now, walk]], columns=['町名_id', '面積(㎡)', '築年数', '駅徒歩'])
+        # 家賃AI予測実行
+        X_rent = pd.DataFrame([[town_id_rent, area, CURRENT_YEAR - year_now, walk]], 
+                              columns=['町名_id', '面積(㎡)', '築年数', '駅徒歩'])
         current_rent_raw = model_rent.predict(X_rent)[0]
 
+        # 未来計算（保存情報に基づき、アプリと同じ劣化率・インフレ率を適用）
         def calc_f_rent(base, yrs, infl):
             return base * ((1 - DEPRECIATION_RATE)**yrs) * ((1 + infl)**yrs)
 
         r10_1 = calc_f_rent(current_rent_raw, 10, 0.01)
         r10_2 = calc_f_rent(current_rent_raw, 10, 0.02)
 
+        # 表示（カッコなし、保存情報の指示通り）
         rc1, rc2, rc3 = st.columns(3)
         with rc1: st.metric("現在の相場賃料", f"{int(current_rent_raw):,}")
         with rc2: st.metric("10年後 インフレ1%", f"{int(r10_1):,}")
@@ -245,5 +259,6 @@ if clicked:
         
         st.write(f"現在の平米単価 　 {int(current_rent_raw/area):,} 円/㎡")
         st.caption(f"※参照地点: {best_key}")
+
     except Exception as e:
         st.error(f"賃料予測エラー: {e}")
