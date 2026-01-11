@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 import lightgbm as lgb
-
+import joblib
 # --- 1. データ定義（継承） ---
 rent_factor = {
     '千代田区': 1.25, '中央区': 1.18, '港区': 1.35, '新宿区': 1.10, '文京区': 1.05,
@@ -350,6 +350,7 @@ if clicked:
 
     except Exception as e:
         st.error(f"シミュレーションエラー: {e}")
+
 
 
 
