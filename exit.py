@@ -15,19 +15,15 @@ st.markdown("""
     .stApp { background: linear-gradient(135deg, #fff5f5 0%, #fff9f0 100%); }
     .center-container { display: flex; justify-content: center; width: 100%; margin: 30px 0; }
     
-    /* 基本のカード設定 */
     .prediction-card {
         background: white; padding: 20px; border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         margin-bottom: 25px; text-align: center;
-        border: 3px solid; /* 枠線の太さを固定 */
+        border: 3px solid;
     }
 
-    /* 1%想定：薄いピンク */
     .border-light { border-color: #ffdae0 !important; }
-    /* 3%想定：中間のピンク */
     .border-medium { border-color: #ff8fa3 !important; }
-    /* 5%想定：濃い赤ピンク */
     .border-heavy { border-color: #ff4b60 !important; }
 
     div.stButton > button {
@@ -38,17 +34,15 @@ st.markdown("""
     }
     .pred-label { color: #ff758c; font-weight: bold; font-size: 1.1rem; }
     .pred-price { color: #d32f2f; font-size: 2.0rem; font-weight: bold; margin: 10px 0; }
-    .pred-diff { font-size: 1.1rem; color: #666; }
+    .yield-label { font-size: 0.9rem; color: #1e293b; background: #fef2f2; border-radius: 8px; padding: 4px; margin-top: 5px;}
     </style>
 """, unsafe_allow_html=True)
 
 # --- 2. フォーム ---
 st.title("📈 将来価値シミュレーション")
-st.subheader("〜 市場上昇シナリオ別の予測 〜")
 
 with st.container():
     mansion_name = st.text_input("マンション名 (任意)", placeholder="例：パークマンション千鳥ヶ淵")
-    
     col1, col2 = st.columns(2)
     with col1:
         price_now = st.number_input("価格 (万円)", min_value=100, value=8000)
@@ -63,38 +57,51 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 3. メイン処理 ---
 if clicked:
+    # 現在の利回り
+    current_yield = (rent_now * 12) / (price_now * 10000) * 100
+
     def get_prediction(years_later, rate):
         return price_now * (rate ** years_later)
+    
+    def calc_f_rent(base, yrs, infl):
+        return base * ((1 - DEPRECIATION_RATE)**yrs) * ((1 + infl)**yrs)
 
-    def get_diff_html(future, current):
-        diff = round((future/current - 1)*100, 1)
-        color = "#ff4b60" if diff >= 0 else "#2196f3"
-        sign = "+" if diff >= 0 else ""
-        return f'<span style="color: {color}; font-weight: bold;">{sign}{diff}%</span>'
-
-    p_5y_1 = get_prediction(5, 1.01); p_5y_3 = get_prediction(5, 1.03); p_5y_5 = get_prediction(5, 1.05)
-    p_10y_1 = get_prediction(10, 1.01); p_10y_3 = get_prediction(10, 1.03); p_10y_5 = get_prediction(10, 1.05)
+    # シナリオ計算 (10年後、インフレ率は市場上昇率の半分程度と仮定してシミュレート)
+    p_10y = [get_prediction(10, r) for r in [1.01, 1.03, 1.05]]
+    # 賃料もインフレを加味（市場1%なら賃料0.5%など、保守的に設定）
+    r_10y = [calc_f_rent(rent_now, 10, r) for r in [0.005, 0.015, 0.025]]
+    
+    # 10年後の各シナリオ利回り計算
+    y_10y = [(r * 12) / (p * 10000) * 100 for r, p in zip(r_10y, p_10y)]
 
     st.divider()
-    st.metric("現在のベース価格", f"{price_now:,} 万円")
+    
+    # 利回りサマリー（戦略パッケージの上に追加）
+    st.write("### 💰 収益性・利回りシミュレーション")
+    y1, y2, y3, y4 = st.columns(4)
+    y1.metric("現在の利回り", f"{current_yield:.2f}%")
+    y2.metric("10年後(1%時)", f"{y_10y[0]:.2f}%")
+    y3.metric("10年後(3%時)", f"{y_10y[1]:.2f}%")
+    y4.metric("10年後(5%時)", f"{y_10y[2]:.2f}%")
 
-    # 5年後セクション
-    st.write("### 📅 5年後の市場シナリオ別予測")
+    # 戦略価格パッケージ
+    st.markdown(f"""
+    ### 💰 戦略価格パッケージ
+    | 項目 | 目安金額 | 算出根拠 |
+    | :--- | :--- | :--- |
+    | 推奨指値 | **{round(price_now):,} 万円** | 適正市場価格 |
+    | 売出目標 | **{round(price_now*1.15):,} 万円** | 強気売出 (+15%) |
+    | 下限価格 | **{round(price_now*0.95):,} 万円** | 早期売却ライン |
+    """)
+
+    st.write("---")
+    # 予測カード（5年後）
+    st.write("### 📅 5年後の市場価格予測")
+    p_5y_1 = get_prediction(5, 1.01); p_5y_3 = get_prediction(5, 1.03); p_5y_5 = get_prediction(5, 1.05)
     c1, c2, c3 = st.columns(3)
-    # クラス名を border-light, border-medium, border-heavy と使い分けて色を濃くしています
-    with c1: st.markdown(f'<div class="prediction-card border-light"><div class="pred-label">5年後 (年1%)</div><div class="pred-price">{round(p_5y_1):,}</div><div class="pred-diff">現在比 {get_diff_html(p_5y_1, price_now)}</div></div>', unsafe_allow_html=True)
-    with c2: st.markdown(f'<div class="prediction-card border-medium"><div class="pred-label">5年後 (年3%)</div><div class="pred-price">{round(p_5y_3):,}</div><div class="pred-diff">現在比 {get_diff_html(p_5y_3, price_now)}</div></div>', unsafe_allow_html=True)
-    with c3: st.markdown(f'<div class="prediction-card border-heavy"><div class="pred-label">5年後 (年5%)</div><div class="pred-price">{round(p_5y_5):,}</div><div class="pred-diff">現在比 {get_diff_html(p_5y_5, price_now)}</div></div>', unsafe_allow_html=True)
-
-    # 10年後セクション
-    st.write("### 📅 10年後の市場シナリオ別予測")
-    c4, c5, c6 = st.columns(3)
-    with c4: st.markdown(f'<div class="prediction-card border-light"><div class="pred-label">10年後 (年1%)</div><div class="pred-price">{round(p_10y_1):,}</div><div class="pred-diff">現在比 {get_diff_html(p_10y_1, price_now)}</div></div>', unsafe_allow_html=True)
-    with c5: st.markdown(f'<div class="prediction-card border-medium"><div class="pred-label">10年後 (年3%)</div><div class="pred-price">{round(p_10y_3):,}</div><div class="pred-diff">現在比 {get_diff_html(p_10y_3, price_now)}</div></div>', unsafe_allow_html=True)
-    with c6: st.markdown(f'<div class="prediction-card border-heavy"><div class="pred-label">10年後 (年5%)</div><div class="pred-price">{round(p_10y_5):,}</div><div class="pred-diff">現在比 {get_diff_html(p_10y_5, price_now)}</div></div>', unsafe_allow_html=True)
-
-    # 価格戦略パッケージ
-    st.markdown(f"### 💰 戦略価格パッケージ\n| 項目 | 目安金額 | 算出根拠 |\n| :--- | :--- | :--- |\n| 推奨指値 | **{round(price_now):,} 万円** | 適正市場価格 |\n| 売出目標 | **{round(price_now*1.15):,} 万円** | 強気売出 (+15%) |\n| 下限価格 | **{round(price_now*0.95):,} 万円** | 早期売却ライン |")
+    with c1: st.markdown(f'<div class="prediction-card border-light"><div class="pred-label">5年後 (年1%)</div><div class="pred-price">{round(p_5y_1):,}</div></div>', unsafe_allow_html=True)
+    with c2: st.markdown(f'<div class="prediction-card border-medium"><div class="pred-label">5年後 (年3%)</div><div class="pred-price">{round(p_5y_3):,}</div></div>', unsafe_allow_html=True)
+    with c3: st.markdown(f'<div class="prediction-card border-heavy"><div class="pred-label">5年後 (年5%)</div><div class="pred-price">{round(p_5y_5):,}</div></div>', unsafe_allow_html=True)
 
 st.markdown("---")
 st.caption("※2026年時点の統計データに基づく計算シミュレーションです。")
