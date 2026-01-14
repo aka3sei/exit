@@ -63,14 +63,32 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 3. メイン処理 ---
 if clicked:
-   
+    # 表面利回りの計算
+    current_yield = (rent_now * 12) / (price_now * 10000) * 100
+    
     # 将来価格予測の計算
     def get_prediction(years_later, rate):
         return price_now * (rate ** years_later)
 
-    # 表面利回りの計算
-    current_yield = (rent_now * 12) / (price_now * 10000) * 100
+    rates = [1.01, 1.03, 1.05]
+    p_5y = [get_prediction(5, r) for r in rates]
+    p_10y = [get_prediction(10, r) for r in rates]
 
+    def get_diff_text(future, current):
+        diff = round((future/current - 1)*100, 1)
+        sign = "+" if diff >= 0 else ""
+        return f"{sign}{diff}%"
+
+    st.divider()
+
+    # ベース価格と利回りを横並びで表示
+    c_base1, c_base2 = st.columns([2, 1])
+    with c_base1:
+        st.metric("現在のベース価格", f"{price_now:,} 万円")
+    with c_base2:
+        # 利回り計算式を表示
+        st.write("📊 表面利回り")
+        st.markdown(f"**{current_yield:.2f}%** \n<small>年間賃料 ÷ 物件価格</small>", unsafe_allow_html=True)
     def get_diff_html(future, current):
         diff = round((future/current - 1)*100, 1)
         color = "#ff4b60" if diff >= 0 else "#2196f3"
@@ -103,4 +121,5 @@ if clicked:
 
 st.markdown("---")
 st.caption("※2026年時点の統計データに基づく計算シミュレーションです。")
+
 
