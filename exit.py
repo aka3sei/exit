@@ -63,8 +63,13 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 3. メイン処理 ---
 if clicked:
+   
+    # 将来価格予測の計算
     def get_prediction(years_later, rate):
         return price_now * (rate ** years_later)
+
+    # 表面利回りの計算
+    current_yield = (rent_now * 12) / (price_now * 10000) * 100
 
     def get_diff_html(future, current):
         diff = round((future/current - 1)*100, 1)
@@ -98,3 +103,4 @@ if clicked:
 
 st.markdown("---")
 st.caption("※2026年時点の統計データに基づく計算シミュレーションです。")
+
