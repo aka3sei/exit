@@ -39,6 +39,15 @@ st.markdown("""
     .pred-label { color: #ff758c; font-weight: bold; font-size: 1.1rem; }
     .pred-price { color: #d32f2f; font-size: 2.0rem; font-weight: bold; margin: 10px 0; }
     .pred-diff { font-size: 1.1rem; color: #666; }
+
+    /* 追加：収益性セクションのスタイル */
+    .yield-container {
+        background: rgba(255, 255, 255, 0.8);
+        padding: 20px;
+        border-radius: 15px;
+        border: 2px dashed #ff9a9e;
+        margin: 20px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -66,6 +75,9 @@ if clicked:
     def get_prediction(years_later, rate):
         return price_now * (rate ** years_later)
 
+    def calc_f_rent(base, yrs, infl):
+        return base * ((1 - DEPRECIATION_RATE)**yrs) * ((1 + infl)**yrs)
+
     def get_diff_html(future, current):
         diff = round((future/current - 1)*100, 1)
         color = "#ff4b60" if diff >= 0 else "#2196f3"
@@ -75,13 +87,31 @@ if clicked:
     p_5y_1 = get_prediction(5, 1.01); p_5y_3 = get_prediction(5, 1.03); p_5y_5 = get_prediction(5, 1.05)
     p_10y_1 = get_prediction(10, 1.01); p_10y_3 = get_prediction(10, 1.03); p_10y_5 = get_prediction(10, 1.05)
 
+    # 利回り計算
+    current_yield = (rent_now * 12) / (price_now * 10000) * 100
+    # 10年後の利回り（賃料インフレを市場上昇の半分と仮定）
+    y_10y_1 = (calc_f_rent(rent_now, 10, 0.005) * 12) / (p_10y_1 * 10000) * 100
+    y_10y_3 = (calc_f_rent(rent_now, 10, 0.015) * 12) / (p_10y_3 * 10000) * 100
+    y_10y_5 = (calc_f_rent(rent_now, 10, 0.025) * 12) / (p_10y_5 * 10000) * 100
+
     st.divider()
-    st.metric("現在のベース価格", f"{price_now:,} 万円")
+    
+    # 💰 収益性・利回りシミュレーション（戦略価格パッケージの上に配置）
+    st.markdown('<div class="yield-container">', unsafe_allow_html=True)
+    st.write("### 💰 収益性・利回りシミュレーション")
+    y_col1, y_col2, y_col3, y_col4 = st.columns(4)
+    y_col1.metric("現在の利回り", f"{current_yield:.2f}%")
+    y_col2.metric("10年後 1%時", f"{y_10y_1:.2f}%")
+    y_col3.metric("10年後 3%時", f"{y_10y_3:.2f}%")
+    y_col4.metric("10年後 5%時", f"{y_10y_5:.2f}%")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 価格戦略パッケージ
+    st.markdown(f"### 💰 戦略価格パッケージ\n| 項目 | 目安金額 | 算出根拠 |\n| :--- | :--- | :--- |\n| 推奨指値 | **{round(price_now):,} 万円** | 適正市場価格 |\n| 売出目標 | **{round(price_now*1.15):,} 万円** | 強気売出 (+15%) |\n| 下限価格 | **{round(price_now*0.95):,} 万円** | 早期売却ライン |")
 
     # 5年後セクション
     st.write("### 📅 5年後の市場シナリオ別予測")
     c1, c2, c3 = st.columns(3)
-    # クラス名を border-light, border-medium, border-heavy と使い分けて色を濃くしています
     with c1: st.markdown(f'<div class="prediction-card border-light"><div class="pred-label">5年後 (年1%)</div><div class="pred-price">{round(p_5y_1):,}</div><div class="pred-diff">現在比 {get_diff_html(p_5y_1, price_now)}</div></div>', unsafe_allow_html=True)
     with c2: st.markdown(f'<div class="prediction-card border-medium"><div class="pred-label">5年後 (年3%)</div><div class="pred-price">{round(p_5y_3):,}</div><div class="pred-diff">現在比 {get_diff_html(p_5y_3, price_now)}</div></div>', unsafe_allow_html=True)
     with c3: st.markdown(f'<div class="prediction-card border-heavy"><div class="pred-label">5年後 (年5%)</div><div class="pred-price">{round(p_5y_5):,}</div><div class="pred-diff">現在比 {get_diff_html(p_5y_5, price_now)}</div></div>', unsafe_allow_html=True)
@@ -92,9 +122,6 @@ if clicked:
     with c4: st.markdown(f'<div class="prediction-card border-light"><div class="pred-label">10年後 (年1%)</div><div class="pred-price">{round(p_10y_1):,}</div><div class="pred-diff">現在比 {get_diff_html(p_10y_1, price_now)}</div></div>', unsafe_allow_html=True)
     with c5: st.markdown(f'<div class="prediction-card border-medium"><div class="pred-label">10年後 (年3%)</div><div class="pred-price">{round(p_10y_3):,}</div><div class="pred-diff">現在比 {get_diff_html(p_10y_3, price_now)}</div></div>', unsafe_allow_html=True)
     with c6: st.markdown(f'<div class="prediction-card border-heavy"><div class="pred-label">10年後 (年5%)</div><div class="pred-price">{round(p_10y_5):,}</div><div class="pred-diff">現在比 {get_diff_html(p_10y_5, price_now)}</div></div>', unsafe_allow_html=True)
-
-    # 価格戦略パッケージ
-    st.markdown(f"### 💰 戦略価格パッケージ\n| 項目 | 目安金額 | 算出根拠 |\n| :--- | :--- | :--- |\n| 推奨指値 | **{round(price_now):,} 万円** | 適正市場価格 |\n| 売出目標 | **{round(price_now*1.15):,} 万円** | 強気売出 (+15%) |\n| 下限価格 | **{round(price_now*0.95):,} 万円** | 早期売却ライン |")
 
 st.markdown("---")
 st.caption("※2026年時点の統計データに基づく計算シミュレーションです。")
