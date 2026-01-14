@@ -32,7 +32,7 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(255, 154, 158, 0.3) !important; border: none !important;
     }
     .pred-label { color: #ff758c; font-weight: bold; font-size: 1.1rem; }
-    .pred-price { color: #d32f2f; font-size: 1.8rem; font-weight: bold; margin: 10px 0; }
+    .pred-price { color: #d32f2f; font-size: 1.6rem; font-weight: bold; margin: 10px 0; }
     .pred-diff { font-size: 1.1rem; color: #666; }
     </style>
 """, unsafe_allow_html=True)
@@ -44,12 +44,11 @@ with st.container():
     mansion_name = st.text_input("マンション名 (任意)", placeholder="例：パークマンション千鳥ヶ淵")
     col1, col2 = st.columns(2)
     with col1:
-        # 入力は万円単位で受け取り、内部で円に変換します
-        price_man = st.number_input("価格 (万円)", min_value=1, value=13752) 
-        price_now = price_man * 10000 # 円単位に変換
-        rent_now = st.number_input("賃料 (円)", min_value=1, value=400000)
+        # 価格の入力欄を「円」に変更。初期値を1億3752万円に設定。
+        price_now = st.number_input("価格 (円)", min_value=1000000, value=137520000, step=1000000) 
+        rent_now = st.number_input("賃料 (円)", min_value=1000, value=400000, step=10000)
     with col2:
-        area = st.number_input("専有面積 (㎡)", min_value=10.0, value=60.0)
+        area = st.number_input("専有面積 (㎡)", min_value=10.0, value=60.0, step=0.1)
         year_now = st.number_input("築年月 (西暦)", min_value=1970, max_value=2026, value=2015)
 
 st.markdown('<div class="center-container">', unsafe_allow_html=True)
@@ -58,7 +57,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 3. メイン処理 ---
 if clicked:
-    # 表面利回りの計算
+    # 表面利回りの計算 (価格が円単位なので10000倍は不要)
     current_yield = (rent_now * 12) / price_now * 100
     
     def get_prediction(years_later, rate):
